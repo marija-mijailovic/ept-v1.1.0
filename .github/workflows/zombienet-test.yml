@@ -1,0 +1,110 @@
+name: Release Build
+on:
+  push:
+    tags:
+    - v[0-9]+.[0-9]+.[0-9]+*
+  workflow_dispatch:
+env:
+  SUBWASM_VERSION: 0.16.1
+jobs:
+  native-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+        - x86_64-unknown-linux-gnu
+        
+    steps:
+    - name: Checkout the source code
+      uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Install deps
+      run: sudo apt -y install protobuf-compiler
+
+    - name: x86_64 setup
+      run: |
+        mkdir -p .cargo
+        touch .cargo/config
+        printf '[target.x86_64-unknown-linux-gnu]\nrustflags = ["-Clink-arg=-fuse-ld=lld"]' >> .cargo/config
+
+    - name: Install & display rust toolchain
+      run: rustup show
+
+    - name: wasm install
+      run: rustup target add wasm32-unknown-unknown
+
+    - name: Check targets are installed correctly
+      run: rustup target list --installed
+
+    - name: Build optimized binary
+      run: CARGO_PROFILE_RELEASE_LTO=true RUSTFLAGS="-C codegen-units=1" cargo build --release --target x86_64-unknown-linux-gnu --verbose --locked
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: parachain-x86_64-unknown-linux-gnu
+        path: target/x86_64-unknown-linux-gnu/release/parachain-template-node
+
+  integration-tests:
+    needs: native-linux
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout the source code
+      uses: actions/checkout@v3
+
+    - run: mkdir -p integration-tests/bin
+
+    - name: Download pre-built linux collator binary
+      uses: actions/download-artifact@v3
+      with:
+        name: parachain-x86_64-unknown-linux-gnu
+        
+    - name: Make binary executable and copy it to integration tests folder
+      run: chmod +x parachain-template-node && cp parachain-template-node integration-tests/bin/parachain-template-node
+
+    - name: Copy polkadot relay chain binary
+      run: |
+        wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.1.0/polkadot
+        chmod +x ./polkadot
+        mv polkadot integration-tests/bin/polkadot
+        
+    - name: Copy polkadot-execute-worker binary
+      run: |
+        wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.1.0/polkadot-execute-worker
+        chmod +x ./polkadot-execute-worker
+        mv polkadot-execute-worker integration-tests/bin/polkadot-execute-worker
+        
+    - name: Copy polkadot-parachain binary
+      run: |
+        wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.1.0/polkadot-parachain
+        chmod +x ./polkadot-parachain
+        mv polkadot-parachain integration-tests/bin/polkadot-parachain
+
+    - name: Copy polkadot-parachain binary
+      run: |
+        wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.1.0/polkadot-prepare-worker
+        chmod +x ./polkadot-prepare-worker
+        mv polkadot-prepare-worker integration-tests/bin/polkadot-prepare-worker
+
+    - name: Copy zombinet testing binary
+      run: |
+        wget https://github.com/paritytech/zombienet/releases/download/v1.3.63/zombienet-linux-x64
+        chmod +x ./zombienet-linux-x64
+        mv zombienet-linux-x64 integration-tests/bin/zombienet-linux-x64
+
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v2
+      with:
+        node-version: 18.x
+
+    - name: Install yarn
+      run: |
+        npm install -g yarn
+        yarn global add ts-node
+        yarn global add @parity/parachains-integration-tests
+      working-directory: ./integration-tests
+
+    - name: Run tests
+      run: parachains-integration-tests -m zombienet-test -t . -c ./zombienet.toml -to 3000000 -el 100000
+      working-directory: ./integration-tests
