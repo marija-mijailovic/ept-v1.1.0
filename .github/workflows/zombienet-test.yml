@@ -1,8 +1,8 @@
 name: Release Build
 on:
   push:
-    tags:
-    - v[0-9]+.[0-9]+.[0-9]+*
+    branches:
+      - main
   workflow_dispatch:
 env:
   SUBWASM_VERSION: 0.16.1
@@ -13,7 +13,7 @@ jobs:
       matrix:
         target:
         - x86_64-unknown-linux-gnu
-        
+
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
@@ -59,7 +59,7 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: parachain-x86_64-unknown-linux-gnu
-        
+
     - name: Make binary executable and copy it to integration tests folder
       run: chmod +x parachain-template-node && cp parachain-template-node integration-tests/bin/parachain-template-node
 
@@ -68,13 +68,13 @@ jobs:
         wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.1.0/polkadot
         chmod +x ./polkadot
         mv polkadot integration-tests/bin/polkadot
-        
+
     - name: Copy polkadot-execute-worker binary
       run: |
         wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.1.0/polkadot-execute-worker
         chmod +x ./polkadot-execute-worker
         mv polkadot-execute-worker integration-tests/bin/polkadot-execute-worker
-        
+
     - name: Copy polkadot-parachain binary
       run: |
         wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.1.0/polkadot-parachain

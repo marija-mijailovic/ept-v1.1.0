@@ -3,7 +3,7 @@ name: Build, test and lint
 on:
   push:
     branches:
-      - release-**
+      - main
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -41,13 +41,13 @@ jobs:
           toolchain: stable
           command: fmt
           args: --all --check
-      
+
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.5.0
         with:
             cache-on-failure: true
             cache-all-crates: true
-  
+
       - name: Check Build
         run: |
           cargo check --release
@@ -57,7 +57,7 @@ jobs:
 
       - name: Check try-runtime build
         run: cargo check --release --features=try-runtime
-      
+
       - name: Ensure benchmarking compiles
         run: >
           pushd node &&
