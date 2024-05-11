@@ -39,7 +39,7 @@ jobs:
       run: rustup target list --installed
 
     - name: Build optimized binary
-      run: cargo build --release --features fast-runtime --target x86_64-unknown-linux-gnu --verbose --locked
+      run: CARGO_PROFILE_RELEASE_LTO=true RUSTFLAGS="-C codegen-units=1" cargo build --release --target x86_64-unknown-linux-gnu --verbose --locked
 
     - uses: actions/upload-artifact@v3
       with:
